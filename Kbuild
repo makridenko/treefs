@@ -1,3 +1,3 @@
-EXTRA_CFLAGS = -Wall -g -Wno-unused
+EXTRA_CFLAGS = -Wall -g
 
 obj-m = treefs.o

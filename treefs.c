@@ -1,10 +1,19 @@
-static int __init treefs_init(void) {
-    return register_filesystem(&treefs_type);
+#include <linux/kernel.h>
+#include <linux/init.h>
+#include <linux/module.h>
+
+MODULE_DESCRIPTION("My kernel module");
+MODULE_AUTHOR("Alexey Makridenko");
+MODULE_LICENSE("GPL");
+
+static int __init exmpl_init(void) {
+    pr_debug("Hi\n");
+    return 0;
 }
 
-static void __exit treefs_exit(void) {
-    unregister_filesystem(&treefs_type);
+static void __exit exmpl_exit(void) {
+    pr_debug("Bye\n");
 }
 
-module_init(treefs_init);
-module_exit(treefs_exit);
+module_init(exmpl_init);
+module_exit(exmpl_exit);
