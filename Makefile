@@ -1,7 +1,8 @@
 KDIR = /lib/modules/`uname -r`/build
-CFLAGS_treefs.o := -DDEBUG
 
-kbuild:
-	make -C $(KDIR) M=`pwd`
+all:
+	make -C $(KDIR) M=`pwd` modules
 clean:
 	make -C $(KDIR) M=`pwd` clean
+test:
+	bash test.sh
