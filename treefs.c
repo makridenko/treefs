@@ -12,6 +12,34 @@ MODULE_LICENSE("GPL");
 #define LOG_LEVEL KERN_ALERT
 
 
+static const struct super_operations treefs_ops = {
+    .statfs = simple_statfs,
+    .drop_inode = generic_drop_inode,
+};
+
+
+static const struct inode_operations treefs_fir_inode_operations = {
+    .create = treefs_create,
+    .lookup = simple_lookup,
+    .mkdir = treefs_mkdir,
+    .rmdir = simple_rmdir,
+    .rename = simple_rename,
+};
+
+
+static const struct file_operations = treefs_file_operations = {
+    .read_iter = generic_file_read_iter,
+    .write_iter = generic_file_write_iter,
+    .mmap = generic_file_mmap,
+    .llseek = generic_file_llseek,
+};
+
+
+static const struct inode_operations treefs_file_inode_operations = {
+    .getattr = simple_getattr,
+};
+
+
 static const struct address_space_operations treefs_aops = {
     .readpage = simple_readpage,
     .write_begin = simple_write_begin,
