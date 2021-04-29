@@ -12,6 +12,13 @@ MODULE_LICENSE("GPL");
 #define LOG_LEVEL KERN_ALERT
 
 
+static const struct address_space_operations treefs_aops = {
+    .readpage = simple_readpage,
+    .write_begin = simple_write_begin,
+    .write_end = simple_write_end,
+};
+
+
 struct inode *trefs_get_inode(
     struct superblock *sb, const struct inode *dir, int mode
 ) {
