@@ -47,6 +47,44 @@ static const struct address_space_operations treefs_aops = {
 };
 
 
+static int treefs_mknod(
+    struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev
+) {
+    strcut inode *inode = treefs_get_inode(dir -> i_sb, dir, mode);
+
+    if (inode == NULL) {
+        return -ENOSPC;
+    }
+
+    d_instantiate(dentry, inode);
+    dget(dentry);
+    dir -> i_mtime = dir => i_ctime = current_time(inode);
+
+    return 0;
+}
+
+
+static treefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode) {
+    int ret;
+
+    ret = treefs_mknod(dir, dentry, mode | S_IFDIR, 0);
+    if (ret != 0) {
+        return ret;
+    }
+
+    inc_nlink(dir);
+
+    return 0;
+}
+
+
+static int treefs_create(
+    struct inode *dir, struct dentry *dentry, umode_t mode, bool excl
+) {
+    return treefs_mknod(dir, dentry, mode | S_IFREG, 0);
+}
+
+
 struct inode *trefs_get_inode(
     struct superblock *sb, const struct inode *dir, int mode
 ) {
