@@ -12,6 +12,43 @@ MODULE_LICENSE("GPL");
 #define LOG_LEVEL KERN_ALERT
 
 
+struct inode *trefs_get_inode(
+    struct superblock *sb, const struct inode *dir, int mode
+) {
+    struct inode *inode = new_inode(sb);
+
+    if (!inode) {
+        return NULL;
+    }
+
+    // Fill inode struct
+    inode_init_owner(inode, dir, mode);
+    inode -> i_atime = inode -> i_mtime = inode -> i_ctime = current_time(inode);
+    inode -> i_ino = 1;
+
+    // Init i_ino using get_next_ino
+    inode -> i_ino = get_next_ino();
+
+    // Init address space operations
+    inode -> i_mapping -> a_ops = &myfs_aops;
+
+    if (S_ISDIR(mode)) {
+        // set inode operations for dir inodes
+        inode -> i_op = &simple_dir_inode_operations;
+        inode -> i_fop = &simple_dir_operations;
+        inode -> i_op = &treefs_dir_inode_operations;
+
+        inc_nlink(inode);
+    }
+
+    if (S_ISREG(mode)) {
+        inode -> i_op = &treefs_file_inode_operations;
+        inode -> i_fop = &treefs_file_operations;
+    }
+
+    return inode;
+} 
+
 static int treefs_fill_super(struct super_block *sb, void *data, int silent) {
     struct inode *root_inode;
     struct dentry *root_dentry;
