@@ -6,6 +6,11 @@ MODULE_DESCRIPTION("My kernel module");
 MODULE_AUTHOR("Alexey Makridenko");
 MODULE_LICENSE("GPL");
 
+#define TREEFS_BLOCKSIZE 4096
+#define TREEFS_BLOCKSIZE_BITS 12
+#define TREEFS_MAGIC 0xbeefcafe
+#define LOG_LEVEL KERN_ALERT
+
 
 static int treefs_fill_super(struct super_block *sb, void *data, int silent) {
     struct inode *root_inode;
