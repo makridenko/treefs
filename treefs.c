@@ -7,6 +7,15 @@ MODULE_AUTHOR("Alexey Makridenko");
 MODULE_LICENSE("GPL");
 
 
+static struct dentry *treefs_mount(
+    struct file_system_type *fs_type, int flags, const char *dev_name,
+    void *data
+) {
+    // Call superblock mount function
+    return mount_nodev(fs_type, flags, data, treefs_fill_super);
+}
+
+
 /* Define file_system_type structure */
 static struct file_system_type treefs_type = {
     .name = "treefs",
