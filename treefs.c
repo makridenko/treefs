@@ -7,6 +7,13 @@ MODULE_AUTHOR("Alexey Makridenko");
 MODULE_LICENSE("GPL");
 
 
+/* Define file_system_type structure */
+static struct file_system_type treefs_type = {
+    .name = "treefs",
+    .mount = treefs_mount,
+};
+
+
 static int __init treefs_init(void) {
     int err;
 
