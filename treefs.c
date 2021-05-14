@@ -177,7 +177,7 @@ static int treefs_readdir(struct file *filp, struct dir_context *ctx) {
         brelse(bh);
     }
 
-    return -1;
+    return err;
 }
 
 static struct treefs_dir_entry *treefs_find_entry(struct dentry *dentry, struct buffer_head **bhp) {
