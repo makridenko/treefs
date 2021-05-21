@@ -50,3 +50,14 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+
+# LaTex
+*.aux
+*.log
+*.pdf
+*.fdb_latexmk
+*.fls
+*.gz
+
+birch/*
