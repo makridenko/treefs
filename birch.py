@@ -43,7 +43,12 @@ class Branch:
         self.path = f'{parent}/branch_{self.created_at}_{uuid4()}'
         self.num_of_leaves = 10
         self.leaves = []
+        self.max_sub_branches_for_leaves = 5
         mkdir(self.path)
+
+    @property
+    def num_sub_branches(self):
+        return len([d[0] for d in os.walk(self.path)]) - 1
 
     def is_one_year_old(self, current_year: int):
         """ Method that get information about branch's age """
@@ -51,8 +56,11 @@ class Branch:
             return True
         return False
 
-    def grow_leaves(self, year):
-        self.leaves = [Leave(year, self) for num in range(self.num_of_leaves)]
+    def grow_leaves(self, year: int) -> None:
+        if self.num_sub_branches <= self.max_sub_branches_for_leaves:
+            self.leaves = [
+                Leave(year, self) for num in range(self.num_of_leaves)
+            ]
 
     def __str__(self):
         return self.path
