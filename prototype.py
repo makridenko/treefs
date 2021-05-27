@@ -33,7 +33,7 @@ def mkdir(dirname: str) -> None:
 class Leave:
     def __init__(self, created_at: int, branch: str) -> None:
         self.created_at = created_at
-        self.path = f'{branch}/leave_{self.created_at}_{uuid4()}'
+        self.path = f'{branch}/leave_{self.created_at}_{uuid4().hex}'
         touch(self.path)
 
 
@@ -79,20 +79,14 @@ class Tree:
         self.years: int = years
         self.branches: list = []
 
-        if mode != ('birch' and 'spruce'):
-            raise Exception('Tree mode is invalid')
-
         self.mode: str = mode
         mkdir(self.mode)
-
+    
     def grow(self) -> None:
         if self.mode == 'birch':
-            self.grow_birch()
+            leaves_years_max: int = 3
         if self.mode == 'spruce':
-            self.grow_spruce()
-    
-    def grow_birch(self) -> None:
-        leaves_years_max: int = 3
+            leaves_years_max: int = 1
         
         for year in range(self.years):
             self.branches.append(Branch(year, self.mode, self.mode))
@@ -102,17 +96,9 @@ class Tree:
                         self.branches.append(Branch(year, branch, self.mode))
                     branch.grow_leaves(year)
 
-    def grow_spruce(self) -> None:
-        for year in range(self.years):
-            self.branches.append(Branch(year, self.mode, self.mode))
-            for branch in self.branches:
-                for num in range(fib(year - 1)):
-                    self.branches.append(Branch(year, branch, self.mode))
-                branch.grow_leaves(year)
-
-
-# birch: Tree = Tree(YEARS, 'birch')
-# birch.grow()
+    
+birch: Tree = Tree(YEARS, 'birch')
+birch.grow()
 
 spruce: Tree = Tree(YEARS, 'spruce')
 spruce.grow()
