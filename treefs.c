@@ -4,6 +4,8 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
+#include <linux/timer.h>
+#include <linux/slab.h>
 
 MODULE_DESCRIPTION("My kernel module");
 MODULE_AUTHOR("Alexey Makridenko");
@@ -23,6 +25,10 @@ static int treefs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 static int treefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode);
 static int treefs_readdir(struct file *filp, struct dir_context *ctx);
 static struct dentry *treefs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags);
+
+struct treefs_super_block {
+    struct timer_list treefs_timer;
+};
 
 static const struct super_operations treefs_ops = {
     .statfs = simple_statfs,
@@ -305,9 +311,14 @@ static int treefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode) 
 }
 
 
+void test_callback(struct timer_list *timer) {
+    printk("test");
+}
+
 static int treefs_fill_super(struct super_block *sb, void *data, int silent) {
     struct inode *root_inode;
     struct dentry *root_dentry;
+    struct treefs_super_block *tsb;
 
     // Fill superblock
     sb->s_maxbytes = MAX_LFS_FILESIZE;
@@ -315,6 +326,10 @@ static int treefs_fill_super(struct super_block *sb, void *data, int silent) {
     sb->s_blocksize = TREEFS_BLOCKSIZE_BITS;
     sb->s_magic = TREEFS_MAGIC;
     sb->s_op = &treefs_ops;
+    tsb = kmalloc(sizeof(*tsb), GFP_KERNEL);
+
+    // FIXME
+    timer_setup(&tsb->treefs_timer, &test_callback, 0);
 
     // Mode - directory and access rights
     root_inode = treefs_get_inode(
