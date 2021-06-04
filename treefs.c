@@ -62,6 +62,8 @@ struct tree {
 
 struct treefs_super_block {
     struct timer_list treefs_timer;
+    struct tree tree;
+    struct work_struct grow_struct;
 };
 
 static const struct super_operations treefs_ops = {
