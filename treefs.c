@@ -6,6 +6,7 @@
 #include <linux/pagemap.h>
 #include <linux/timer.h>
 #include <linux/slab.h>
+#include <linux/workqueue.h>
 
 MODULE_DESCRIPTION("My kernel module");
 MODULE_AUTHOR("Alexey Makridenko");
@@ -18,6 +19,10 @@ MODULE_LICENSE("GPL");
 #define TREEFS_NAME_LEN 16
 #define TREEFS_INODE_BLOCK 1
 #define TREEFS_NUM_ENTRIES 32
+
+void grow_handler(struct work_struct *work);
+
+DECLARE_WORK(grow_struct, grow_handler);
 
 /* Declaration of functions that are part of operations structures */
 static int treefs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev);
@@ -311,8 +316,12 @@ static int treefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode) 
 }
 
 
-void test_callback(struct timer_list *timer) {
-    printk("test");
+void grow_handler(struct work_struct *work) {
+    printk("foo");
+}
+
+void grow_callback(struct timer_list *timer) {
+    schedule_work(&grow_struct);
 }
 
 static int treefs_fill_super(struct super_block *sb, void *data, int silent) {
@@ -329,7 +338,7 @@ static int treefs_fill_super(struct super_block *sb, void *data, int silent) {
     tsb = kmalloc(sizeof(*tsb), GFP_KERNEL);
 
     // FIXME
-    timer_setup(&tsb->treefs_timer, &test_callback, 0);
+    timer_setup(&tsb->treefs_timer, &grow_callback, 0);
 
     // Mode - directory and access rights
     root_inode = treefs_get_inode(
