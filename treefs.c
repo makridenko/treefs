@@ -31,6 +31,35 @@ static int treefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode);
 static int treefs_readdir(struct file *filp, struct dir_context *ctx);
 static struct dentry *treefs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags);
 
+struct leave {
+    // Year that leave was created
+    int created_at;
+    // Leave name (path)
+    char *name;
+};
+
+struct branch {
+    // Year that branch was created
+    int created_at;
+    // Branch name (path)
+    char *name;
+    // Number of leaves on branch
+    int num_of_leaves;
+
+    struct leave *leaves;
+    struct branch *sub_branches;
+
+    int max_sub_branches;
+    int max_sub_branches_for_leaves;
+};
+
+struct tree {
+    int years;
+    int max_branches;
+    struct branch *branches;
+    char *mode;
+};
+
 struct treefs_super_block {
     struct timer_list treefs_timer;
 };
