@@ -4,6 +4,9 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
+#include <linux/timer.h>
+#include <linux/slab.h>
+#include <linux/workqueue.h>
 
 MODULE_DESCRIPTION("My kernel module");
 MODULE_AUTHOR("Alexey Makridenko");
@@ -17,12 +20,52 @@ MODULE_LICENSE("GPL");
 #define TREEFS_INODE_BLOCK 1
 #define TREEFS_NUM_ENTRIES 32
 
+void grow_handler(struct work_struct *work);
+
+DECLARE_WORK(grow_struct, grow_handler);
+
 /* Declaration of functions that are part of operations structures */
 static int treefs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev);
 static int treefs_create(struct inode *dir, struct dentry *dentry, umode_t mode, bool excl);
 static int treefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode);
 static int treefs_readdir(struct file *filp, struct dir_context *ctx);
 static struct dentry *treefs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags);
+
+struct leave {
+    // Year that leave was created
+    int created_at;
+    // Leave name (path)
+    char *name;
+    unsigned long ino;
+};
+
+struct branch {
+    // Year that branch was created
+    int created_at;
+    // Branch name (path)
+    char *name;
+    // Number of leaves on branch
+    int num_of_leaves;
+
+    struct leave **leaves;
+    struct branch *sub_branches;
+
+    int max_sub_branches;
+    int max_sub_branches_for_leaves;
+};
+
+struct tree {
+    int years;
+    struct branch **branches;
+    char *mode;
+    size_t num_of_branches;
+};
+
+struct treefs_super_block {
+    struct timer_list treefs_timer;
+    struct tree tree;
+    struct work_struct grow_struct;
+};
 
 static const struct super_operations treefs_ops = {
     .statfs = simple_statfs,
@@ -44,7 +87,6 @@ static const struct file_operations treefs_file_operations = {
     .write_iter = generic_file_write_iter,
     .mmap = generic_file_mmap,
     .llseek = generic_file_llseek,
-    .iterate = treefs_readdir,
 };
 
 static const struct file_operations treefs_dir_operations = {
@@ -64,29 +106,10 @@ static const struct address_space_operations treefs_aops = {
     .write_end = simple_write_end,
 };
 
-struct treefs_inode {
-    __u32 mode;
-    __u32 uid;
-    __u32 gid;
-    __u32 size;
-    __u32 data_block;
-};
-
-struct treefs_inode_info {
-    __u16 data_block;
-    struct inode vfs_inode;
-};
-
-struct treefs_dir_entry {
-    __u32 ino;
-    char name[TREEFS_NAME_LEN];
-};
 
 static struct inode *treefs_iget(struct super_block *s, unsigned long ino) {
-    struct treefs_inode *mi;
-    struct buffer_head *bh;
     struct inode *inode;
-    struct treefs_inode_info *mii;
+    struct branch *branch;
 
     // Allocate VFS inode
     inode = iget_locked(s, ino);
@@ -95,118 +118,38 @@ static struct inode *treefs_iget(struct super_block *s, unsigned long ino) {
     // Return inode from cache
     if (!(inode->i_state & I_NEW)) return inode;
 
-    if (!(bh = sb_bread(s, TREEFS_INODE_BLOCK))) {
-        iget_failed(inode);
-        return NULL;
-    }
-
-    // Get inode with index ino from the block
-    mi = ((struct treefs_inode *) bh->b_data) + ino;
-
-    // Fill VFS inode
-    inode->i_mode = mi->mode;
-    i_uid_write(inode, mi->uid);
-    i_gid_write(inode, mi->gid);
-    inode->i_size = mi->size;
-    inode->i_blocks = 0;
+    inode->i_mode =  S_IFDIR|S_IRUGO|S_IXUGO;
     inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
-
-    // Fill address space operations (inode->i_mapping->a_ops)
-    inode->i_mapping->a_ops = &treefs_aops;
-
-    if (S_ISDIR(inode->i_mode)) {
-        inode->i_op = &simple_dir_inode_operations;
-        inode->i_fop = &simple_dir_operations;
-
-        inode->i_op = &treefs_dir_inode_operations;
-        inode->i_fop = &treefs_dir_operations;
-
-        inc_nlink(inode);
-    }
-
-    if (S_ISREG(inode->i_mode)) {
-        inode->i_op = &treefs_file_inode_operations;
-        inode->i_fop = &treefs_file_operations;
-    }
-
-    mii = container_of(inode, struct treefs_inode_info, vfs_inode);
-
-    mii->data_block = mi->data_block;
-
-    brelse(bh);
+    inode->i_op = &treefs_dir_inode_operations;
+    inode->i_fop = &treefs_dir_operations;
+    inc_nlink(inode);
     unlock_new_inode(inode);
+
+    inode->i_private = branch;
+
     return inode;
 }
 
 
 static int treefs_readdir(struct file *filp, struct dir_context *ctx) {
-    struct buffer_head *bh;
-    struct treefs_dir_entry *de;
-    struct treefs_inode_info *mii;
-    struct inode *inode;
-    struct super_block *sb;
-    int over;
-    int err = 0;
+    struct branch *branch;
+    loff_t pos = ctx->pos;
 
-    // Get inode of directory and container inode
-    inode = file_inode(filp);
-    mii = container_of(inode, struct treefs_inode_info, vfs_inode);
-
-    // Get superblock from inode (i_sb)
-    sb = inode->i_sb;
-
-    // Read data block for directory inode
-    bh = sb_bread(sb, mii->data_block);
-    if (bh == NULL) {
-        printk(LOG_LEVEL "Error: could not read block\n");
-        err = -ENOMEM;
-        return err;
+    if (pos < 2) {
+        if (!dir_emit_dots(filp, ctx)) return 0;
     }
 
-    for (; ctx->pos < TREEFS_NUM_ENTRIES; ctx->pos++) {
-        // Data block contains an array of "struct treefs_dir_entry"
-        de = (struct treefs_dir_entry *) bh->b_data + ctx->pos;
-
-        // Step over empty entries
-        if (de->ino == 0) continue;
+    if (filp->f_inode->i_ino == 1) {
+        struct leave *leaf = branch->leaves[pos-2];
+        return dir_emit(ctx, leaf->name, strlen(leaf->name), leaf->ino, DT_REG);
     }
 
-    over = dir_emit(ctx, de->name, TREEFS_NAME_LEN, de->ino, DT_UNKNOWN);
-    if (over) {
-        ctx->pos++;
-        brelse(bh);
-    }
+    branch = filp->f_inode->i_private;
 
-    return err;
+    struct leave *leaf = branch->leaves[pos - 2];
+    return dir_emit(ctx, leaf->name, strlen(leaf->name), leaf->ino, DT_REG);
 }
 
-static struct treefs_dir_entry *treefs_find_entry(struct dentry *dentry, struct buffer_head **bhp) {
-    struct buffer_head *bh;
-    struct inode *dir = dentry->d_parent->d_inode;
-    struct treefs_inode_info *mii = container_of(dir, struct treefs_inode_info, vfs_inode);
-    struct super_block *sb = dir->i_sb;
-    const char *name = dentry->d_name.name;
-    struct treefs_dir_entry *final_de = NULL;
-    struct treefs_dir_entry *de;
-    int i;
-
-    bh = sb_bread(sb, mii->data_block);
-    if (bh == NULL) return NULL;
-
-    *bhp = bh;
-
-    for (i = 0; i < TREEFS_NUM_ENTRIES; i++) {
-        de = ((struct treefs_dir_entry *) bh->b_data) + i;
-        if (de->ino != 0) {
-            if (strcmp(name, de->name) == 0) {
-                final_de = de;
-                break;
-            }
-        }
-    }
-
-    return final_de;
-}
 
 static struct dentry *treefs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags) {
     struct super_block *sb = dir->i_sb;
@@ -215,12 +158,6 @@ static struct dentry *treefs_lookup(struct inode *dir, struct dentry *dentry, un
     struct inode *inode = NULL;
 
     dentry->d_op = sb->s_root->d_op;
-
-    de = treefs_find_entry(dentry, &bh);
-    if (de != NULL) {
-        inode = treefs_iget(sb, de->ino);
-        if (IS_ERR(inode)) return ERR_CAST(inode);
-    }
 
     d_add(dentry, inode);
     brelse(bh);
@@ -305,9 +242,20 @@ static int treefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode) 
 }
 
 
+void grow_handler(struct work_struct *work) {
+    struct treefs_super_block *sb;
+    sb = container_of(work, struct treefs_super_block, grow_struct);
+
+}
+
+void grow_callback(struct timer_list *timer) {
+    schedule_work(&grow_struct);
+}
+
 static int treefs_fill_super(struct super_block *sb, void *data, int silent) {
     struct inode *root_inode;
     struct dentry *root_dentry;
+    struct treefs_super_block *tsb;
 
     // Fill superblock
     sb->s_maxbytes = MAX_LFS_FILESIZE;
@@ -315,6 +263,10 @@ static int treefs_fill_super(struct super_block *sb, void *data, int silent) {
     sb->s_blocksize = TREEFS_BLOCKSIZE_BITS;
     sb->s_magic = TREEFS_MAGIC;
     sb->s_op = &treefs_ops;
+    tsb = kmalloc(sizeof(*tsb), GFP_KERNEL);
+
+    // FIXME
+    timer_setup(&tsb->treefs_timer, &grow_callback, 0);
 
     // Mode - directory and access rights
     root_inode = treefs_get_inode(
