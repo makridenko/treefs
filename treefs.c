@@ -52,12 +52,19 @@ struct branch {
 
     int max_sub_branches;
     int max_sub_branches_for_leaves;
+    unsigned long ino;
+};
+
+enum treeType {
+    birch,
+    spruce,
 };
 
 struct tree {
     int years;
+    int current_year;
     struct branch **branches;
-    char *mode;
+    treeType mode;
     size_t num_of_branches;
 };
 
@@ -65,6 +72,7 @@ struct treefs_super_block {
     struct timer_list treefs_timer;
     struct tree tree;
     struct work_struct grow_struct;
+    unsigned long next_ino;
 };
 
 static const struct super_operations treefs_ops = {
@@ -243,9 +251,30 @@ static int treefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode) 
 
 
 void grow_handler(struct work_struct *work) {
+    struct tree *tree;
+    struct branch *branch;
+
+    int leaves_years_max = 0;
+
     struct treefs_super_block *sb;
     sb = container_of(work, struct treefs_super_block, grow_struct);
 
+    tree = &sb->tree;
+
+    // New branch init for trunk growing
+    branch = kzalloc(sizeof(*branch), GFP_KERNEL);
+    branch->created_at = tree->current_year;
+    branch->ino = sb->next_ino++;
+    branch->max_sub_branches_for_leaves = 5;
+    branch->name = kasprintf(GFP_KERNEL, "branch_%lu", branch->ino);
+
+    if (tree->mode == birch) {
+        leaves_years_max = 3;
+        branch->num_of_leaves = 10;
+    } else {
+        leaves_years_max = 1;
+        branch->num_of_leaves = 100;
+    }
 }
 
 void grow_callback(struct timer_list *timer) {
@@ -264,6 +293,15 @@ static int treefs_fill_super(struct super_block *sb, void *data, int silent) {
     sb->s_magic = TREEFS_MAGIC;
     sb->s_op = &treefs_ops;
     tsb = kmalloc(sizeof(*tsb), GFP_KERNEL);
+
+    // Tree init
+    treeType type;
+    type = birch;
+
+    tsb->tree.mode = type;
+    tsb->tree.years = 10;
+    
+    tsb->next_ino = 10;
 
     // FIXME
     timer_setup(&tsb->treefs_timer, &grow_callback, 0);
