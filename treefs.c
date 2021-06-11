@@ -116,6 +116,7 @@ static const struct address_space_operations treefs_aops = {
 };
 
 static int treefs_readdir(struct file *filp, struct dir_context *ctx) {
+    printk('readdir start')
     struct branch *branch;
     loff_t pos = ctx->pos;
 
@@ -131,11 +132,14 @@ static int treefs_readdir(struct file *filp, struct dir_context *ctx) {
     }
 
     struct leave *leaf = branch->leaves[pos - 2];
+    printk('readdir end')
     return dir_emit(ctx, leaf->name, strlen(leaf->name), leaf->ino, DT_REG);
 }
 
 
 static struct dentry *treefs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags) {
+    printk('lookup start')
+
     struct super_block *sb = dir->i_sb;
     struct treefs_dir_entry *de;
     struct inode *inode = NULL;
@@ -149,6 +153,8 @@ static struct dentry *treefs_lookup(struct inode *dir, struct dentry *dentry, un
             inode->i_ino = branch->sub_branches[i]->ino;
             inode->i_private = branch->sub_branches[i];
             d_add(dentry, inode);
+
+            printk('lookup end with dir')
             return NULL;
         }
     }
@@ -159,10 +165,13 @@ static struct dentry *treefs_lookup(struct inode *dir, struct dentry *dentry, un
             inode->i_ino = branch->leaves[i]->ino;
             inode->i_private = branch->leaves[i];
             d_add(dentry, inode);
+            printk('lookup end with file')
             return NULL;
         }
     }
 
+
+    printk('lookup end')
     return ERR_PTR(-ENOENT);
 }
 
