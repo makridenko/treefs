@@ -63,6 +63,8 @@
     использования новых технологий, применяемых в базах данных (возможность 
     полнотекстового поиска, сортировка файлов по различным атрибутам).
 
+    \newpage
+
     \section{Основные термины и концепции \newline операционных систем}
     \subsection{Пользователь и ядро.}
     Пользователь и ядро - два термина, которые часто используются в 
@@ -414,6 +416,8 @@
     и две для конкретной файловой системы - одну в памяти, используемую драйвером
     файловом системы, и одну в хранилище.
 
+    \newpage
+
     \begin{figure}[h!]
         \center{\includegraphics[width=\textwidth]{vfs.png}}
         \caption{Работа \texttt{VFS}}
@@ -570,14 +574,116 @@ spruce.grow()
     После того, как был написан прототип на \texttt{Python 3.9} необходимо было
     реализовать этот алгоритм в коде файловой системы \texttt{treefs}.
 
+    Класс \texttt{Tree} был реализован внутри структуры \texttt{treefs\_super\_block},
+    а классы \texttt{Branch} и \texttt{Leave} внутри струкр \texttt{branch} и
+    \texttt{leave} соответственно.
+
+    \begin{lstlisting}
+        struct leave {
+            // Year that leave was created
+            int created_at;
+            // Leave name (path)
+            char *name;
+            unsigned long ino;
+        };
+        
+        struct branch {
+            // Year that branch was created
+            int created_at;
+            // Branch name (path)
+            char *name;
+        
+            // Number of leaves on branch
+            int num_of_leaves;
+        
+            int leaves_years_max;
+        
+            size_t current_num_of_leaves;
+            size_t current_num_of_sub_branches;
+        
+            struct leave **leaves;
+            struct branch **sub_branches;
+        
+            int max_sub_branches;
+            int max_sub_branches_for_leaves;
+            unsigned long ino;
+        };
+        
+        enum treeType {
+            birch,
+            spruce,
+        };
+        
+        
+        struct treefs_super_block {
+            struct timer_list treefs_timer;
+            struct work_struct grow_struct;
+            unsigned long next_ino;
+        
+            // Tree fields
+            int years;
+            int current_year;
+            struct branch tree;
+            enum treeType mode;
+            size_t num_of_branches;
+        }; 
+    \end{lstlisting}
+
+    Также был реализован метод \texttt{grow\_leaf} для роста "листьев".
+
+    \begin{lstlisting}
+    void grow_leaf(
+        struct treefs_super_block *tsb, struct branch *b
+    ) {
+        struct leave *leaf;
+        struct leave **new_leafs;
+        struct leave **tmp_leafs;
+
+        if (b->max_sub_branches ==
+            b->max_sub_branches_for_leaves) {
+            return;
+        }
+
+        // New leaf init for growing
+        leaf = kzalloc(sizeof(*leaf), GFP_KERNEL);
+        leaf->created_at = tsb->current_year;
+        leaf->ino = tsb->next_ino++;
+
+        new_leafs = kzalloc(
+            sizeof(b->leaves) * 
+            (b->current_num_of_leaves+1), 
+            GFP_KERNEL
+        );
+        memcpy(
+            new_leafs, 
+            b->leaves, 
+            sizeof(new_leafs[0])*b->current_num_of_leaves
+        );
+        new_leafs[b->num_of_leaves++] = leaf;
+        tmp_leafs = b->leaves;
+        b->leaves = new_leafs;
+        kvfree(tmp_leafs);
+
+    }
+    \end{lstlisting}
+
+    И рекурсивная функция \texttt{grow\_branch} для роста "веток".
+    \begin{lstlisting}
+    \end{lstlisting}
+
+    \newpage
     \section{Заключение}
     В данной работе была рассмотрена архитектура ядра Linux, в частности
     внутреннее устройство и работа файловых систем, а также была разработана
     собсвтенная файловая система для ядра Linux, которая способна имплементировать
     два вида дерева - береза и ель.
 
+    \newpage
+
     \begin{thebibliography}{99}
     \end{thebibliography}
+
+    \newpage
 
     \section{Приложение}
 

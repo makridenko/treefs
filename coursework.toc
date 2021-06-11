@@ -1,7 +1,7 @@
 \babel@toc {russian}{}
 \contentsline {section}{\numberline {1}Введение}{2}%
-\contentsline {section}{\numberline {2}Основные термины и концепции \newline операционных систем}{3}%
-\contentsline {subsection}{\numberline {2.1}Пользователь и ядро.}{3}%
+\contentsline {section}{\numberline {2}Основные термины и концепции \newline операционных систем}{4}%
+\contentsline {subsection}{\numberline {2.1}Пользователь и ядро.}{4}%
 \contentsline {subsection}{\numberline {2.2}Стандартная архитектура операционной системы}{4}%
 \contentsline {section}{\numberline {3}Обзор ядра Linux}{5}%
 \contentsline {subsection}{\numberline {3.1}Модель разработки Linux}{5}%
@@ -18,7 +18,7 @@
 \contentsline {subsection}{\numberline {5.1}Регистрация файловой системы}{12}%
 \contentsline {subsection}{\numberline {5.2}\texttt {inode}}{13}%
 \contentsline {subsection}{\numberline {5.3}\texttt {VFS} в Linux}{14}%
-\contentsline {subsection}{\numberline {5.4}\texttt {Superblock} в \texttt {VFS}}{14}%
-\contentsline {subsection}{\numberline {5.5}Алгоритм роста дерева}{14}%
-\contentsline {section}{\numberline {6}Заключение}{19}%
-\contentsline {section}{\numberline {7}Приложение}{19}%
+\contentsline {subsection}{\numberline {5.4}\texttt {Superblock} в \texttt {VFS}}{15}%
+\contentsline {subsection}{\numberline {5.5}Алгоритм роста дерева}{15}%
+\contentsline {section}{\numberline {6}Заключение}{22}%
+\contentsline {section}{\numberline {7}Приложение}{24}%
