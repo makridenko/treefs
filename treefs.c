@@ -149,7 +149,7 @@ static struct dentry *treefs_lookup(struct inode *dir, struct dentry *dentry, un
             inode->i_ino = branch->sub_branches[i]->ino;
             inode->i_private = branch->sub_branches[i];
             d_add(dentry, inode);
-            return dentry;
+            return NULL;
         }
     }
 
@@ -159,11 +159,11 @@ static struct dentry *treefs_lookup(struct inode *dir, struct dentry *dentry, un
             inode->i_ino = branch->leaves[i]->ino;
             inode->i_private = branch->leaves[i];
             d_add(dentry, inode);
-            return dentry;
+            return NULL;
         }
     }
 
-    return NULL;
+    return ERR_PTR(-ENOENT);
 }
 
 
