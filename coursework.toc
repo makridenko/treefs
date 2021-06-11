@@ -20,5 +20,5 @@
 \contentsline {subsection}{\numberline {5.3}\texttt {VFS} в Linux}{14}%
 \contentsline {subsection}{\numberline {5.4}\texttt {Superblock} в \texttt {VFS}}{15}%
 \contentsline {subsection}{\numberline {5.5}Алгоритм роста дерева}{15}%
-\contentsline {section}{\numberline {6}Заключение}{22}%
-\contentsline {section}{\numberline {7}Приложение}{24}%
+\contentsline {section}{\numberline {6}Заключение}{24}%
+\contentsline {section}{\numberline {7}Приложение}{26}%
