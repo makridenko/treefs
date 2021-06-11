@@ -336,6 +336,7 @@ void grow_branch(struct treefs_super_block *tsb, struct branch *tree) {
 void grow_handler(struct work_struct *work) {
     struct treefs_super_block *sb;
     sb = container_of(work, struct treefs_super_block, grow_struct);
+    sb->current_year++;
     grow_branch(sb, &sb->tree);
 }
 
@@ -386,6 +387,8 @@ static int treefs_fill_super(struct super_block *sb, void *data, int silent) {
     }
 
     sb->s_root = root_dentry;
+
+    mod_timer(&tsb->treefs_timer, jiffies + msecs_to_jiffies(10000));
     return 0;
 }
 
