@@ -669,6 +669,62 @@ spruce.grow()
 
     И рекурсивная функция \texttt{grow\_branch} для роста "веток".
     \begin{lstlisting}
+        void grow_branch(
+            struct treefs_super_block *tsb, 
+            struct branch *tree
+        ) {
+            struct branch *branch;
+            struct branch **tmp_branches;
+            struct branch **new_branches;
+            int i, j;
+
+            // ISO C90 warning
+            int fib_num = fib(tsb->current_year);
+
+            // New branch init for trunk growing
+            branch = kzalloc(sizeof(*branch), GFP_KERNEL);
+            branch->created_at = tsb->current_year;
+            branch->ino = tsb->next_ino++;
+            branch->max_sub_branches_for_leaves = 5;
+            branch->name = kasprintf(
+                GFP_KERNEL, "branch_%lu", branch->ino
+            );
+
+            if (tsb->mode == birch) {
+                branch->leaves_years_max = 3;
+                branch->num_of_leaves = 10;
+            } else {
+                branch->leaves_years_max = 1;
+                branch->num_of_leaves = 100;
+            }
+
+            new_branches = kzalloc(
+                sizeof(tree->sub_branches[0]) * 
+                (tree->current_num_of_sub_branches+1), 
+                GFP_KERNEL);
+            memcpy(
+                new_branches, 
+                tree->sub_branches, 
+                sizeof(new_branches[0])*tree->
+                current_num_of_sub_branches);
+            new_branches[tsb->num_of_branches++] = branch;
+            tmp_branches = tree->sub_branches;
+            tree->sub_branches = new_branches;
+            kvfree(tmp_branches);
+
+            for (
+                i=0; 
+                i < branch->current_num_of_sub_branches; 
+                i++) 
+            {
+                if (is_young(branch, tsb->current_year)) {
+                    for (j=0; j < fib_num; j++) {
+                        grow_branch(tsb, branch);
+                    }
+                    grow_leaf(tsb, tree->sub_branches[i]);
+                }
+            }
+        }
     \end{lstlisting}
 
     \newpage
