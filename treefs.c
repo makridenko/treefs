@@ -152,12 +152,12 @@ static int treefs_readdir(struct file *filp, struct dir_context *ctx) {
         if (!dir_emit_dots(filp, ctx)) return 0;
     }
 
+    branch = filp->f_inode->i_private;
+
     if (filp->f_inode->i_ino == 1) {
         struct leave *leaf = branch->leaves[pos-2];
         return dir_emit(ctx, leaf->name, strlen(leaf->name), leaf->ino, DT_REG);
     }
-
-    branch = filp->f_inode->i_private;
 
     struct leave *leaf = branch->leaves[pos - 2];
     return dir_emit(ctx, leaf->name, strlen(leaf->name), leaf->ino, DT_REG);
