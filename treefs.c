@@ -44,11 +44,17 @@ struct branch {
     int created_at;
     // Branch name (path)
     char *name;
+
     // Number of leaves on branch
     int num_of_leaves;
 
+    int leaves_years_max;
+
+    size_t current_num_of_leaves;
+    size_t current_num_of_sub_branches;
+
     struct leave **leaves;
-    struct branch *sub_branches;
+    struct branch **sub_branches;
 
     int max_sub_branches;
     int max_sub_branches_for_leaves;
@@ -60,19 +66,18 @@ enum treeType {
     spruce,
 };
 
-struct tree {
-    int years;
-    int current_year;
-    struct branch **branches;
-    treeType mode;
-    size_t num_of_branches;
-};
 
 struct treefs_super_block {
     struct timer_list treefs_timer;
-    struct tree tree;
     struct work_struct grow_struct;
     unsigned long next_ino;
+
+    // Tree fields
+    int years;
+    int current_year;
+    struct branch tree;
+    enum treeType mode;
+    size_t num_of_branches;
 };
 
 static const struct super_operations treefs_ops = {
@@ -249,32 +254,89 @@ static int treefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode) 
     return 0;
 }
 
+int fib(int num) {
+    if (num == -1) return 0;
+    if (num == 0) return 0;
+    if (num == 1) return 1;
+    return fib(num - 1) + fib(num -2);
+}
 
-void grow_handler(struct work_struct *work) {
-    struct tree *tree;
+bool is_young(struct branch *b, int current_year) {
+    if (current_year - b->created_at < b->leaves_years_max) 
+        return true;
+    return false;
+}
+
+void grow_leaf(struct treefs_super_block *tsb, struct branch *b) {
+    struct leave *leaf;
+    struct leave **new_leafs;
+    struct leave **tmp_leafs;
+
+    if (b->max_sub_branches == b->max_sub_branches_for_leaves) {
+        return;
+    }
+
+    // New leaf init for growing
+    leaf = kzalloc(sizeof(*leaf), GFP_KERNEL);
+    leaf->created_at = tsb->current_year;
+    leaf->ino = tsb->next_ino++;
+
+    new_leafs = kzalloc(sizeof(b->leaves) * (b->current_num_of_leaves+1), GFP_KERNEL);
+    memcpy(new_leafs, b->leaves, sizeof(new_leafs[0])*b->current_num_of_leaves);
+    new_leafs[b->num_of_leaves++] = leaf;
+    tmp_leafs = b->leaves;
+    b->leaves = new_leafs;
+    kvfree(tmp_leafs);
+
+}
+
+void grow_branch(struct treefs_super_block *tsb, struct branch *tree) {
     struct branch *branch;
+    struct branch **tmp_branches;
+    struct branch **new_branches;
+    int i, j;
 
-    int leaves_years_max = 0;
-
-    struct treefs_super_block *sb;
-    sb = container_of(work, struct treefs_super_block, grow_struct);
-
-    tree = &sb->tree;
+    // ISO C90 warning
+    int fib_num = fib(tsb->current_year);
 
     // New branch init for trunk growing
     branch = kzalloc(sizeof(*branch), GFP_KERNEL);
-    branch->created_at = tree->current_year;
-    branch->ino = sb->next_ino++;
+    branch->created_at = tsb->current_year;
+    branch->ino = tsb->next_ino++;
     branch->max_sub_branches_for_leaves = 5;
     branch->name = kasprintf(GFP_KERNEL, "branch_%lu", branch->ino);
 
-    if (tree->mode == birch) {
-        leaves_years_max = 3;
+    if (tsb->mode == birch) {
+        branch->leaves_years_max = 3;
         branch->num_of_leaves = 10;
     } else {
-        leaves_years_max = 1;
+        branch->leaves_years_max = 1;
         branch->num_of_leaves = 100;
     }
+
+    new_branches = kzalloc(sizeof(tree->sub_branches[0]) * (tree->current_num_of_sub_branches+1), GFP_KERNEL);
+    memcpy(new_branches, tree->sub_branches, sizeof(new_branches[0])*tree->current_num_of_sub_branches);
+    new_branches[tsb->num_of_branches++] = branch;
+    tmp_branches = tree->sub_branches;
+    tree->sub_branches = new_branches;
+    kvfree(tmp_branches);
+
+    // Идем по массиву веток и вызываем grow_branch
+    for (i=0; i < branch->current_num_of_sub_branches; i++) {
+        if (is_young(branch, tsb->current_year)) {
+            for (j=0; j < fib_num; j++) {
+                grow_branch(tsb, branch);
+            }
+            grow_leaf(tsb, tree->sub_branches[i]);
+        }
+    }
+}
+
+
+void grow_handler(struct work_struct *work) {
+    struct treefs_super_block *sb;
+    sb = container_of(work, struct treefs_super_block, grow_struct);
+    grow_branch(sb, &sb->tree);
 }
 
 void grow_callback(struct timer_list *timer) {
@@ -292,14 +354,13 @@ static int treefs_fill_super(struct super_block *sb, void *data, int silent) {
     sb->s_blocksize = TREEFS_BLOCKSIZE_BITS;
     sb->s_magic = TREEFS_MAGIC;
     sb->s_op = &treefs_ops;
-    tsb = kmalloc(sizeof(*tsb), GFP_KERNEL);
+    tsb = kzalloc(sizeof(*tsb), GFP_KERNEL);
 
     // Tree init
-    treeType type;
-    type = birch;
+    enum treeType type = birch;
 
-    tsb->tree.mode = type;
-    tsb->tree.years = 10;
+    tsb->mode = type;
+    tsb->years = 10;
     
     tsb->next_ino = 10;
 
