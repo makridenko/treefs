@@ -118,7 +118,7 @@ static const struct address_space_operations treefs_aops = {
 };
 
 static int treefs_readdir(struct file *filp, struct dir_context *ctx) {
-    printk(LOG_LEVEL "readdir start");
+    printk(LOG_LEVEL "readdir start\n");
     struct branch *branch;
     loff_t pos = ctx->pos;
 
@@ -134,13 +134,13 @@ static int treefs_readdir(struct file *filp, struct dir_context *ctx) {
     }
 
     struct leave *leaf = branch->leaves[pos - 2];
-    printk(LOG_LEVEL "readdir end");
+    printk(LOG_LEVEL "readdir end\n");
     return dir_emit(ctx, leaf->name, strlen(leaf->name), leaf->ino, DT_REG);
 }
 
 
 static struct dentry *treefs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags) {
-    printk(LOG_LEVEL "lookup start");
+    printk(LOG_LEVEL "lookup start\n");
 
     struct super_block *sb = dir->i_sb;
     struct treefs_dir_entry *de;
@@ -156,7 +156,7 @@ static struct dentry *treefs_lookup(struct inode *dir, struct dentry *dentry, un
             inode->i_private = branch->sub_branches[i];
             d_add(dentry, inode);
 
-            printk(LOG_LEVEL "lookup end with dir");
+            printk(LOG_LEVEL "lookup end with dir\n");
             return NULL;
         }
     }
@@ -167,13 +167,13 @@ static struct dentry *treefs_lookup(struct inode *dir, struct dentry *dentry, un
             inode->i_ino = branch->leaves[i]->ino;
             inode->i_private = branch->leaves[i];
             d_add(dentry, inode);
-            printk(LOG_LEVEL "lookup end with file");
+            printk(LOG_LEVEL "lookup end with file\n");
             return NULL;
         }
     }
 
 
-    printk(LOG_LEVEL "lookup end");
+    printk(LOG_LEVEL "lookup end\n");
     return ERR_PTR(-ENOENT);
 }
 
@@ -252,7 +252,7 @@ void grow_leaf(struct treefs_super_block *tsb, struct branch *b) {
 }
 
 void grow_branch(struct treefs_super_block *tsb, struct branch *tree) {
-    printk(LOG_LEVEL "start grow_branch");
+    printk(LOG_LEVEL "start grow_branch\n");
     struct branch *branch;
     struct branch **tmp_branches;
     struct branch **new_branches;
@@ -276,7 +276,7 @@ void grow_branch(struct treefs_super_block *tsb, struct branch *tree) {
         branch->num_of_leaves = 100;
     }
 
-    printk(LOG_LEVEL "new branch");
+    printk(LOG_LEVEL "new branch\n");
 
     new_branches = kzalloc(sizeof(tree->sub_branches[0]) * (tree->current_num_of_sub_branches+1), GFP_KERNEL);
     memcpy(new_branches, tree->sub_branches, sizeof(new_branches[0])*tree->current_num_of_sub_branches);
@@ -285,7 +285,7 @@ void grow_branch(struct treefs_super_block *tsb, struct branch *tree) {
     tree->sub_branches = new_branches;
     kvfree(tmp_branches);
 
-    printk(LOG_LEVEL "cycle");
+    printk(LOG_LEVEL "cycle\n");
     // Идем по массиву веток и вызываем grow_branch
     for (i=0; i < branch->current_num_of_sub_branches; i++) {
         if (is_young(branch, tsb->current_year)) {
@@ -297,7 +297,7 @@ void grow_branch(struct treefs_super_block *tsb, struct branch *tree) {
     }
 
     mod_timer(&tsb->treefs_timer, jiffies + msecs_to_jiffies(10000));
-    printk(LOG_LEVEL "end grow_branch");
+    printk(LOG_LEVEL "end grow_branch\n");
 }
 
 
