@@ -75,6 +75,8 @@ struct treefs_super_block {
     int current_year;
     struct branch tree;
     enum treeType mode;
+
+    // Current num of branches in the tree
     size_t num_of_branches;
 };
 
@@ -275,7 +277,7 @@ void grow_branch(struct treefs_super_block *tsb, struct branch *tree) {
 
     new_branches = kzalloc(sizeof(tree->sub_branches[0]) * (tree->current_num_of_sub_branches+1), GFP_KERNEL);
     memcpy(new_branches, tree->sub_branches, sizeof(new_branches[0])*tree->current_num_of_sub_branches);
-    new_branches[tsb->num_of_branches++] = branch;
+    new_branches[tree->current_num_of_sub_branches++] = branch;
     tmp_branches = tree->sub_branches;
     tree->sub_branches = new_branches;
     kvfree(tmp_branches);
@@ -289,6 +291,8 @@ void grow_branch(struct treefs_super_block *tsb, struct branch *tree) {
             grow_leaf(tsb, tree->sub_branches[i]);
         }
     }
+
+    mod_timer(&tsb->treefs_timer, jiffies + msecs_to_jiffies(10000));
 }
 
 
