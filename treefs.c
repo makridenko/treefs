@@ -252,6 +252,7 @@ void grow_leaf(struct treefs_super_block *tsb, struct branch *b) {
 }
 
 void grow_branch(struct treefs_super_block *tsb, struct branch *tree) {
+    printk(LOG_LEVEL "start grow_branch");
     struct branch *branch;
     struct branch **tmp_branches;
     struct branch **new_branches;
@@ -275,6 +276,8 @@ void grow_branch(struct treefs_super_block *tsb, struct branch *tree) {
         branch->num_of_leaves = 100;
     }
 
+    printk(LOG_LEVEL "new branch");
+
     new_branches = kzalloc(sizeof(tree->sub_branches[0]) * (tree->current_num_of_sub_branches+1), GFP_KERNEL);
     memcpy(new_branches, tree->sub_branches, sizeof(new_branches[0])*tree->current_num_of_sub_branches);
     new_branches[tree->current_num_of_sub_branches++] = branch;
@@ -282,6 +285,7 @@ void grow_branch(struct treefs_super_block *tsb, struct branch *tree) {
     tree->sub_branches = new_branches;
     kvfree(tmp_branches);
 
+    printk(LOG_LEVEL "cycle");
     // Идем по массиву веток и вызываем grow_branch
     for (i=0; i < branch->current_num_of_sub_branches; i++) {
         if (is_young(branch, tsb->current_year)) {
@@ -293,6 +297,7 @@ void grow_branch(struct treefs_super_block *tsb, struct branch *tree) {
     }
 
     mod_timer(&tsb->treefs_timer, jiffies + msecs_to_jiffies(10000));
+    printk(LOG_LEVEL "end grow_branch");
 }
 
 
